@@ -124,21 +124,16 @@ Try step 5 again
 
 
 ### Linux
-1. [Install Python 3](https://www.python.org/downloads/).
-2. Install the ODrive tools by opening a terminal and typing `pip install odrive` <kbd>Enter</kbd>
-3. Set up USB permissions
-```bash
-    echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="1209", ATTR{idProduct}=="0d[0-9][0-9]", MODE="0666"' | sudo tee /etc/udev/rules.d/91-odrive.rules
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
-```
+1. [Install Python 3](https://www.python.org/downloads/). (for example, on Ubuntu, `sudo apt install python3 python3-pip`)
+2. Install the ODrive tools by opening a terminal and typing `sudo pip3 install odrive` <kbd>Enter</kbd>
+3. (needed on Ubuntu, maybe other distros too) Add odrivetool into the path, by adding `~/.local/bin/` into `~/.bash_profile`, for example by running `nano ~/.bashrc`, scrolling to the bottom, pasting `PATH=$PATH:~/.local/bin/`, and then saving and closing, and close and reopen the terminal window.
 
 ## Firmware
 **ODrive v3.5 and later**<br>
 Your board should come preflashed with firmware. If you run into problems, follow the instructions [here](odrivetool.md#device-firmware-update) on the DFU procedure before you continue.
 
 **ODrive v3.4 and earlier**<br>
-Your board does **not** come preflashed with any firmware. Follow the instructions [here](odrivetool.md#device-firmware-update) on the STP Link procedure before you continue.
+Your board does **not** come preflashed with any firmware. Follow the instructions [here](odrivetool.md#device-firmware-update) on the ST Link procedure before you continue.
 
 ## Start `odrivetool`
 To launch the main interactive ODrive tool, type `odrivetool` <kbd>Enter</kbd>. Connect your ODrive and wait for the tool to find it. Now you can, for instance type `odrv0.vbus_voltage` <kbd>Enter</kbd> to inpect the boards main supply voltage.
@@ -193,7 +188,7 @@ This is the resistance of the brake resistor. If you are not using it, you may s
  
 `odrv0.axis0.motor.config.pole_pairs`  
 This is the number of **magnet poles** in the rotor, **divided by two**. To find this, you can simply count the number of permanent magnets in the rotor, if you can see them. _Note: this is not the same as the number of coils in the stator._
-If you can't see them, try sliding a magnet around the rotor, and counting how many times it stops. This will be the number of **pole pairs**. If you use a magnetic piece of metal instead of a magnet, you will get the number of **magnet poles**.
+If you can't see them, try sliding a loose magnet in your hand around the rotor, and counting how many times it stops. This will be the number of **pole pairs**. If you use a magnetic piece of metal instead of a magnet, you will get the number of **magnet poles**.
 
 `odrv0.axis0.motor.config.motor_type`  
 This is the type of motor being used. Currently two types of motors are supported: High-current motors (`MOTOR_TYPE_HIGH_CURRENT`) and gimbal motors (`MOTOR_TYPE_GIMBAL`).
@@ -261,7 +256,7 @@ You can also directly control the current of the motor, which is proportional to
 
 
 ### Trajectory control
-Set `axis.controller.config.control_mode = CTRL_MODE_TRAJECTORY_CONTROL`.<br>
+While in position control mode, use the `move_to_pos` or `move_incremental` functions. See the **Usage** section for details<br>
 This mode lets you smoothly accelerate, coast, and decelerate the axis from one position to another. With raw position control, the controller simply tries to go to the setpoint as quickly as possible. Using a trajectory lets you tune the feedback gains more aggressively to reject disturbance, while keeping smooth motion.
 
 ![Taptraj](TrapTrajPosVel.PNG)<br>
@@ -291,8 +286,17 @@ Keep in mind that you must still set your safety limits as before.  I recommend 
 #### Usage
 Use the `move_to_pos` function to move to an absolute position:
 ```
-<odrv>.<axis>.controller.move_to_pos(<Float>)
+<odrv>.<axis>.controller.move_to_pos(your_absolute_pos)
 ```
+
+Use the `move_incremental` function to move to a relative position.
+To set the goal relative to the current actual position, use `from_goal_point = False`
+To set the goal relative to the previous destination, use `from_goal_point = True`
+```
+<odrv>.<axis>.controller.move_incremental(pos_increment, from_goal_point)
+```
+
+You can also execute a move with the [appropriate ascii command](ascii-protocol.md#motor-trajectory-command).
 
 ### Circular position control
 
@@ -321,6 +325,18 @@ Set `axis.controller.config.control_mode = CTRL_MODE_CURRENT_CONTROL`.<br>
 You can now control the current with `axis.controller.current_setpoint = 3` [A].
 
 *Note: There is no velocity limiting in current control mode. Make sure that you don't overrev the motor, or exceed the max speed for your encoder.*
+
+
+## Watchdog Timer
+Each axis has a configurable watchdog timer that can stop the motors if the
+control connection to the ODrive is interrupted.
+
+Each axis has a configurable watchdog timeout: `axis.config.watchdog_timeout`,
+measured in seconds. A value of `0` disables the watchdog functionality. Any value
+`> 0` will stop the motors if the watchdog has not been fed in the configured
+time interval. 
+
+The watchdog is fed using the `axis.watchdog_feed()` method of each axis. 
 
 ## What's next?
 You can now:
